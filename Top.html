@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>ProbeCard Top Configuration</title>
+        <link href="./style.css" rel="stylesheet" media="all">
+        <style>
+        #project {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display:inline-block;
+            background-color: #333;
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: rgba(255,255,255,0.5) 2px 3px 6px;
+        }
+        </style>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+        <script src="./common.js"></script>
+    </head>
+
+    <body>
+        <center>
+        <div id="project">[ ProbeCard Top Schematic ]</div>
+        </center>
+
+        <div id="svgContainer" name="container" align="center"></div>
+
+    <script language="javascript">
+//        const xmlns = "http://www.w3.org/2000/svg";
+        const svgWidth = 600 + 40;      // 25 x 44 = 1100
+        const svgHeight = 300 + 40;      // 25 x 34 = 850
+
+        var svgTag;
+
+        function getUrlParams() {
+            var params = {};
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str, key, value) {
+                params[key] = value;
+            });
+            return params;
+        }
+
+        var TotalDUT;
+        var DutPower;
+
+//        $(document).ready(function(){
+        $(function() {
+            var oParams = getUrlParams();
+
+            if( Object.keys(oParams).length == 0 ) {
+                DutPower = 2;
+                TotalDUT = 1200;
+            } else {
+//                console.log(oParams);
+//                console.log(`oParams = ${JSON.stringify(oParams)}, ${Object.keys(oParams).length}`);
+                DutPower = parseInt(oParams.DutPower);
+                TotalDUT = parseInt(oParams.TotalDUT);
+            }
+//            console.log(`DutPower = ${DutPower}, Total DUT = ${TotalDUT}`);
+
+            createPage();
+
+            // 브라우저의 Window 크기에 맞추어서 svg영역을 재설정한다.
+            var w = $(window).width();
+            var h = $(window).height();
+//            console.log(`window size = ${w} x ${h})`);
+            console.log(`window position : (${window.screenX}, ${window.screenY}), size : ${window.innerWidth} x ${window.innerHeight}`);
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+        });
+
+        // 브라우저 windows의 크기를 변경하면 Call된다.
+        $(window).resize( function() {
+            var w = $(window).width();
+            var h = $(window).height();
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+
+            clientWidth = $('#ProbeCard').width();
+            clientHeight = $('#ProbeCard').height();
+//            console.log(`window : (${w}, ${h}), ProbeCard : (${clientWidth}, ${clientHeight})\n`);
+        });
+
+
+/*
+        // 동적으로 생성된 element에서는 동작하지 않는다.
+        $('#EnableCtrl0').click(function(event) {
+            console.log(event);
+            if( event.ctrlKey ) {
+                console.log('ctrl + click');
+            } else if( event.shiftKey ) {
+                console.log('shift + click');
+            } else {
+                console.log('click');
+            }
+        });
+
+        // 동적/정적인 element(요소)에 모두 동작한다.
+        $(document).on('click', '#EnableCtrl', function(event) {
+            console.log(event);
+            if( event.ctrlKey ) {
+                console.log('ctrl + click');
+            } else if( event.shiftKey ) {
+                console.log('shift + click');
+            } else {
+                console.log('click');
+            }
+        });
+*/
+
+        function createPage() {
+            svgTag = document.createElementNS(xmlns, "svg");
+            svgTag.setAttributeNS(null, "id", "ProbeCard");
+            svgTag.setAttributeNS(null, "align", "center");
+            svgTag.setAttributeNS(null, "width", "100%");//svgWidth.toString());
+            svgTag.setAttributeNS(null, "height", "100%");//svgHeight.toString());
+            svgTag.setAttributeNS(null, "viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+
+//            console.log(`SVG width(${svgTag.getAttribute('width')}), height(${svgTag.getAttribute('height')})`);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:1, y:1, width:svgWidth-2, height:svgHeight-2, fill:"transparent", stroke:'gray', "stroke-width":1
+            }).appendTo(svgTag);
+
+            var elem;
+
+            var x;
+            var y;
+            var sx = 50;
+            var sy = 50;
+            var w;
+            var h;
+
+
+            // FPGA rect.
+            x = sx;
+            y = sy;
+
+            /*
+            $(document.createElementNS(xmlns, "path")).attr({
+                d:`M 10 10 v 10 h 10 l 5 -5 l -5 -5 h -10`, stroke:'black', fill:'green'
+            }).appendTo(svgTag);
+            */
+
+            x = 10;
+            y = 10;
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:x, y:y, 'font-size':10, class:'rightAlign', 'font-weight':'bold', fill:'black'
+            }).append(
+                $(document.createElementNS(xmlns, "tspan")).attr({
+                    x:x, y:y
+                }).text('▶ FPGA I/O : 16+40 = 56EA')
+            ).append(
+                $(document.createElementNS(xmlns, "tspan")).attr({
+                    x:x, y:y+10
+                }).text('▶ 300-Duts Per Bank.')
+            ).append(
+                $(document.createElementNS(xmlns, "tspan")).attr({
+                    x:x, y:y+20
+                }).text('▶ 60-Duts Per Page.')
+            ).appendTo(svgTag);
+
+
+            x = 20;
+            y = 70;
+            w = 100;
+            h = 200;
+
+            drawOutputLine(0, x+88, y+25, 80, `SCLK[3:0]`, 'SCLK[3:0]', 3);
+            drawOutputLine(0, x+88, y+35, 80, `SDO[3:0]`, 'SDO[3:0]', 3);
+            drawOutputLine(0, x+88, y+45, 80, `SCSN[3:0]`, 'SCSN[3:0]', 3);
+            drawOutputLine(0, x+88, y+55, 80, `CSN[3:0]`, 'CSN[3:0]', 3);
+
+            drawInputLine(0, x+88, y+125, 80, 'CLS[39:0]', 'CLS[39:0]', 3);
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:x+50, y:y+12, 'font-size':12, class:'centerAlign'
+            }).text('FPGA').appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:x, y:y, width:100, height:160, class:'normalsvg'
+            }).appendTo(svgTag);
+
+            drawOutputLine(0, x+88, y+200, 80, `PPS[39:0]`, 'PPS[39:0]', 3, 'transparent');
+
+            sx = 300;
+            sy = 40;
+            x = sx;
+            y = sy;
+            w = 100;
+            h = 100;
+            for(var bank=0; bank<4; bank++) {
+                if( bank == 0 ) {
+                    x = sx;
+                    y = sy;
+                } else if( bank == 1 ) {
+                    x = sx;
+                    y = y + (h + 60);
+                } else if( bank == 2 ) {
+                    x = x + (w + 100);
+                    y = sy;
+                } else if( bank == 3 ) {
+                    x = sx + (w + 100);
+                    y = sy + (h + 60);
+                }
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x+(w/2), y:y+12, 'font-size':12, class:'centerAlign'
+                }).text(`BANK-${bank}`).appendTo(svgTag);
+
+                drawInputLine(1, x, y+25, 60, `SCLK${bank}`, 'SCLK', 1);
+                drawInputLine(1, x, y+35, 60, `SDO${bank}`, 'SDI', 1);
+                drawInputLine(1, x, y+45, 60, `SCSN${bank}`, 'SCSN', 1);
+                drawInputLine(1, x, y+55, 60, `CSN${bank}`, 'CSN', 1);
+                drawInputLine(1, x, y+65, 60, `PPS[${(bank*10)+9}:${bank*10}]`, 'PPS[9:0]', 3);
+
+                drawOutputLine(1, x, y+85, 60, `CLS[${(bank*10)+9}:${bank*10}]`, 'CLS[9:0]', 3);
+
+                $(document.createElementNS(xmlns, "rect")).attr({
+                    x:x, y:y, width:w, height:h, value:`${bank}`, class:"normalsvg", onclick:'clickBank(this);'
+                }).appendTo(svgTag);
+
+            }
+
+            var svgContainer = document.getElementById("svgContainer");
+            svgContainer.appendChild(svgTag);
+
+        }
+
+        function clickBank(bank) {
+//            console.log(bank);
+            var num = $(bank).attr('value');
+//            console.log(`bank number = ${num}`);
+
+            var url = 'Bank.html';
+            var width = 1000;
+            var height = 600;
+            var top = 10;
+            var left = 10;
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+            url += `&nBank=${num}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+                opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            window.open(url, `Bank-${num} Window Open`, opt);
+        }
+
+    </script>
+</body>
+</html>

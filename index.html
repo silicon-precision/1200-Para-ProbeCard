@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>1200 Para(2-Power) ProbeCard Configuation</title>
+        <link href="./style.css" rel="stylesheet" media="all">
+        <style>
+        #project {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display:inline-block;
+            background-color: #333;
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: rgba(255,255,255,0.5) 2px 3px 6px;
+        }
+            #PS1120Command {
+                border: 0px dashed gray;
+                font-size: small;
+                font-family: Arial, 바탕체, "times New Roman", Serif;
+                text-align: center;
+                padding: 5px;
+            }
+            #tooltip {
+                opacity: "3";
+                font-family: verdana;
+                font-weight: bold;
+                font-size: 10px;
+                color:#000;
+                z-index: 1;
+                background-color: cornsilk;
+/*            background: rgb(103, 243, 37); */
+                border: 1px solid black;
+                border-radius: 5px;
+                padding: 5px;
+            }
+
+        </style>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+        <script src="./common.js"></script>
+    </head>
+
+    <body>
+        <center>
+        <div id="project">[ 1200-Para(2-Power) ProbeCard ]</div>
+        </center>
+        <center>
+        <!--
+        <b>Dut Power Number : </b>
+        <input type="number" id="DutPower" min="2" max="3" step='1' value='3' style='display:inline-block'>
+        -->
+        <button class='button init'><u>I</u>nit &#9632;</button>&emsp;
+        <!--
+        <button class='button prev' disabled><u>P</u>rev &#9664;</button>&emsp;
+        -->
+        <button class='button next' disabled><u>N</u>ext &#9654;</button></br>
+        <div id='PS1120Command'></div>
+
+        <div id="tooltip" display='none' style="position:absolute; display:none;"></div>
+        <div id="svgContainer" name="container" align="center"></div>
+        </center>
+
+    <script language="javascript">
+        var DutPower;           // DUT Power
+        var TotalDUT;           // Total DUT number
+        var ActiveDUT;          // Active DUT index(0 ~ 59)
+        var svgTag;
+
+        var ClickPage = 0;
+        var bytes = [];
+
+//        $(document).ready(function(){
+        $(function() {
+            ClickPage = 0;
+            ActiveDUT = 0;
+            DutPower = 2;
+
+            createPage(DutPower);
+
+            // 브라우저의 Window 크기에 맞추어서 svg영역을 재설정한다.
+            var w = $(window).width();
+            var h = $(window).height();
+//            console.log(`window size = ${w} x ${h})`);
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-120);
+            $("#PS1120Command").width('auto');
+//            console.log(`inner size : ${$('#ProbeCard').innerWidth()} x ${$('#ProbeCard').innerHeight()}`);
+//            console.log(`rect width = ${$('#Card').width()}`);
+        });
+
+        // 브라우저 windows의 크기를 변경하면 Call된다.
+        $(window).resize( function() {
+//            console.log(this);
+            var w = $(window).width();
+            var h = $(window).height();
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-120);
+
+            $("#PS1120Command").width('auto');
+//            console.log(`inner size : ${$('#ProbeCard').innerWidth()} x ${$('#ProbeCard').innerHeight()}`);
+//            console.log(`rect width = ${$('#Card').width()}`);
+        });
+
+
+        $('.button.init').click(function(e) {
+//            console.log(e);
+            ActiveDUT = 0;
+            ClickPage = 0;
+
+            $('rect.DUT').attr('fill', 'transparent').attr('stroke', 'black').attr('stroke-width', 1);
+
+            bytes = [];
+            bytes.push(0xAA);       // Sync.
+            bytes.push(0x37);       // Chip Address Assignment.
+            bytes.push(0xFF);       // Chip Select.
+            bytes.push(0x00);       // operate cycle.
+            bytes.push(0x00);       // shift cycle.
+            bytes.push(0xAA);       // Sync.
+            bytes.push(0x35);       // Active Discharge Enable.
+            bytes.push(0x00);       // operate cycle.
+            bytes.push(0x00);       // shift cycle.
+            bytes.push(0xAA);       // Sync.
+            bytes.push(0x00);       // All Switch Off.
+            bytes.push(0x00);       // operate cycle.
+            bytes.push(0x00);       // shift cycle.
+
+            $('#PS1120Command').html( 'Command Byte : ' + CommandParser(bytes) );
+//            $('button.prev').attr('disabled', true);
+            $('button.next').attr('disabled', false);
+        });
+
+        $('.button.prev').click(function(e) {
+//            console.log(e);
+
+            if( ActiveDUT > 0 ) ActiveDUT--;
+//            console.log(`ActiveDUT = ${ActiveDUT}`);
+
+            $(`rect.DUT`).attr('fill', 'transparent');
+            $(`rect.IdxInPage${ActiveDUT-1}`).attr('fill', 'red');
+
+            $('.DUT').attr('stroke', 'black').attr('stroke-width', 1);
+
+            if( ActiveDUT == 0 ) {
+                $('#PS1120Command').html();
+//                console.log(`ClickPage = ${ClickPage}`);
+                $('button.prev').attr('disabled', true);
+                return;
+            }
+            $('button.next').attr('disabled', false);
+
+            var row = 0;
+            var col = 0;
+
+            bytes = [];
+            bytes.push(0xAA);       // Sync.
+            bytes.push(0x00);       // All Switch Off.
+            bytes.push(0x00);       // operate cycle.
+            bytes.push(0x00);       // shift cycle.
+
+            /* ActiveDUT = 1  :  0 60 -> row : (1<<9), col : (1<<11) | (1<<5)
+             * ActiveDUT = 2  :  1 61 -> row : (1<<8), col : (1<<11) | (1<<5)
+             * ActiveDUT = 3  :  2 62 -> row : (1<<7), col : (1<<11) | (1<<5)
+             * ActiveDUT = 4  :  3 63 -> row : (1<<6), col : (1<<11) | (1<<5)
+             * ...
+             * ActiveDUT = 9  :  8 68 -> row : (1<<1), col : (1<<11) | (1<<5)
+             * ActiveDUT = 10 :  9 69 -> row : (1<<0), col : (1<<11) | (1<<5)
+             * ActiveDUT = 11 : 10 70 -> row : (1<<9), col : (1<<10) | (1<<4)
+             * ActiveDUT = 12 : 11 71 -> row : (1<<8), col : (1<<10) | (1<<4)
+             * ...
+             * ActiveDUT = 19 : 18 78 -> row : (1<<1), col : (1<<10) | (1<<4)
+             * ActiveDUT = 20 : 19 79 -> row : (1<<0), col : (1<<10) | (1<<4)
+             * ActiveDUT = 21 : 20 80 -> row : (1<<9), col : (1<<9) | (1<<3)
+             * ActiveDUT = 22 : 21 81 -> row : (1<<8), col : (1<<9) | (1<<3)
+             * ...
+             * ...
+             * ActiveDUT = 59 : 58 118 -> row : (1<<1), col : (1<<6) | (1<<0)
+             * ActiveDUT = 60 : 59 119 -> row : (1<<0), col : (1<<6) | (1<<0)
+             */
+            row = (1 << (9 - ((ActiveDUT - 1) % 10)));
+            n = parseInt((ActiveDUT - 1) / 10)
+            col = (1 << (11 - n)) | (1 << (5 - n));
+            bytes = bytes.concat(RowColumnCommand(0x01, 0xF8, row, col));
+
+            $('#PS1120Command').html( 'Command Byte : ' + CommandParser(bytes) );
+
+            var DutNum = (ClickPage * 60) + ActiveDUT;
+            dutClick($(`#DUT-${DutNum}`));
+        });
+
+        $('.button.next').click(function(e) {
+//            console.log(e);
+            console.log(`ActiveDUT = ${ActiveDUT}`);
+//            if( ActiveDUT == MaxDut ) {
+//                ActiveDUT = 0;
+//                $('button.next').attr('disabled', true);
+//                $('#PS1120Command').html('');
+//                return;
+//            }
+
+//            $('button.prev').attr('disabled', false);
+            if( ActiveDUT < MaxDut ) ActiveDUT++;
+            else ActiveDUT = 0;
+            console.log(`ActiveDUT = ${ActiveDUT}`);
+//            var UnitIdx = (ActiveDUT+1) >> 1;
+
+            $(`rect.DUT`).attr('fill', 'transparent');
+            $(`rect.IdxInPage${ActiveDUT-1}`).attr('fill', 'red');
+
+            var row = 0;
+            var col = 0;
+
+            bytes = [];
+            bytes.push(0xAA);       // Sync.
+            bytes.push(0x00);       // All Switch Off.
+            bytes.push(0x00);       // operate cycle.
+            bytes.push(0x00);       // shift cycle.
+
+            /* ActiveDUT = 1  :  0 60 -> row : (1<<9), col : (1<<11) | (1<<5)
+             * ActiveDUT = 2  :  1 61 -> row : (1<<8), col : (1<<11) | (1<<5)
+             * ActiveDUT = 3  :  2 62 -> row : (1<<7), col : (1<<11) | (1<<5)
+             * ActiveDUT = 4  :  3 63 -> row : (1<<6), col : (1<<11) | (1<<5)
+             * ...
+             * ActiveDUT = 9  :  8 68 -> row : (1<<1), col : (1<<11) | (1<<5)
+             * ActiveDUT = 10 :  9 69 -> row : (1<<0), col : (1<<11) | (1<<5)
+             * ActiveDUT = 11 : 10 70 -> row : (1<<9), col : (1<<10) | (1<<4)
+             * ActiveDUT = 12 : 11 71 -> row : (1<<8), col : (1<<10) | (1<<4)
+             * ...
+             * ActiveDUT = 19 : 18 78 -> row : (1<<1), col : (1<<10) | (1<<4)
+             * ActiveDUT = 20 : 19 79 -> row : (1<<0), col : (1<<10) | (1<<4)
+             * ActiveDUT = 21 : 20 80 -> row : (1<<9), col : (1<<9) | (1<<3)
+             * ActiveDUT = 22 : 21 81 -> row : (1<<8), col : (1<<9) | (1<<3)
+             * ...
+             * ...
+             * ActiveDUT = 59 : 58 118 -> row : (1<<1), col : (1<<6) | (1<<0)
+             * ActiveDUT = 60 : 59 119 -> row : (1<<0), col : (1<<6) | (1<<0)
+             */
+            var DutNum;
+            if( ActiveDUT == 0 ) {
+                $('.DUT').attr('stroke', 'black').attr('stroke-width', 1);
+                DutNum = (ClickPage * 60) + 1;
+            } else {
+                row = (1 << (9 - ((ActiveDUT - 1) % 10)));
+                n = parseInt((ActiveDUT - 1) / 10)
+                col = (1 << (11 - n)) | (1 << (5 - n));
+                bytes = bytes.concat(RowColumnCommand(0x01, 0xF8, row, col));
+
+
+                DutNum = (ClickPage * 60) + ActiveDUT;
+//            console.log(`DutNum = ${DutNum}, ClickPage = ${ClickPage}`);
+            }
+            dutClick($(`#DUT-${DutNum}`));
+
+            $('#PS1120Command').html( 'Command Byte : ' + CommandParser(bytes) );
+        });
+
+        $('#PS1120Command').click(function(event) {
+
+            if( $('#PS1120Command').html() == '' ) return;
+
+            if( event.shiftKey == false ) return;
+
+            var url = `timing.html?Bytes=${bytes}`;
+
+            var width = (bytes.length * 90) + 50;
+            var height = 340;
+            var left, top;
+
+            // screen의 우측 상단에 시작점을 맞추어서 'timing.html'을 출력한다.
+            left = window.screen.availWidth - (width + 10);
+            top = 10;
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+//            console.log(`width = ${width}, height = ${height}, top = ${top}, left = ${left}`);
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+            opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            window.open(url, 'SPI Timing', opt);
+        });
+
+        function RowColumnCommand(ctrl, chip, row, col) {
+//            console.log(`ctrl = 0x${ctrl.toString(16)}, chip = 0x${chip.toString(16)}, row = 0x${row.toString(16)}, col = 0x${col.toString(16)}`);
+            var arr = [];
+            arr.push(0xAA);         // Sync.
+            arr.push(0x58 | ctrl);  // Command Type & Switch Control.
+            arr.push(chip);         // Chip Select.
+            arr.push((row >> 2) & 0xFF);        // Row Select.
+            arr.push(((row << 6) & 0xC0) | ((col >> 6) & 0x3F));        // Row & Column Select.
+            arr.push(((col << 2) & 0xFC));        // Column Select.
+            arr.push(0x00);       // operate cycle.
+            arr.push(0x00);       // shift cycle.
+
+            return arr;
+        }
+
+        function toHexString(bytes) {
+            return bytes.map(function(byte) {
+                return '0x' + ('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2);
+            }).join(' ')
+        }
+        function CommandParser(bytes) {
+            var state = 0;
+            var cmd = 0;
+            var op = 0;
+            var chip = 0;
+            var row = 0;
+            var col = 0;
+            var switchNum = 0;
+            var switchSelect = [];
+            var str = '';
+//            console.log(`bytes(${bytes.length}) = ${toHexString(bytes)}`);
+            return bytes.map(function(byte, idx) {
+//                console.log(`byte[${idx}] = 0x${byte.toString(16)}, state = ${state}`);
+                switch( state ) {
+                    case 0:         // sync receive.
+                        if( byte == 0xAA ) {
+                            str = `<span style="color:red"><b>0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}</b></span>`;
+                            state++;
+                        }
+                        break;
+                    case 1:         // cmd receive.
+                        cmd = (byte & 0x38) >> 3;
+                        op = (byte & 0x7);
+
+                        if( byte & 0x40 ) state = 2;
+                        else {
+                            if( (cmd == 0x0) || (cmd == 0x6) ) {
+                                if( (cmd == 0x6) && (op == 7) ) {       // Chip Address Assignment.
+                                    state = 4;
+                                } else state = 6;
+                            } else state = 4;
+                        }
+                        str = `<span style="color:blue"><b>0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}</b></span>`;
+                        break;
+                    case 2:         // chip select receive
+                        chip = byte;
+                        str = `<span style="color:purple"><b>0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}</b></span>`;
+                        if( (cmd == 0x0) || (cmd == 0x6) ) {
+                            state = 6;
+                        } else {
+                            state = 4;
+                        }
+                        break;
+                    case 4:         // switch number, row, column, switch select receive.
+                        str = `<span style="color:green"><b>0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}</b></span>`;
+                        if( cmd == 0x1 ) {
+                            switchNum = byte;
+                            state = 6;
+                        } else if( (cmd == 2) || (cmd == 3) ) {
+                            row = byte << 2;
+                            state = 5;
+                        } else if( (cmd == 4) || (cmd == 5) ) {
+                            col = byte << 4;
+                            state = 5;
+                        } else if( cmd == 6 ) {
+                            state = 6;
+                        } else if( cmd == 7 ) {
+                            switchSelect.push(byte);
+                            switchBytes++;
+                            if( switchBytes == 15 ) state = 6;
+                        }
+                        break;
+                    case 5:         // row select receive.
+                        str = `<span style="color:green"><b>0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}</b></span>`;
+                        if( cmd == 0x2 ) {   // row select command.
+                            row |= (byte & 0xC0) >> 6;
+                            state = 6;
+                        } else if( cmd == 0x3 ) {   // row & column select command.
+                            row |= (byte & 0xC0) >> 6;
+                            col |= (byte & 0x3F) << 6;
+                            state = 51;
+                        } else if( cmd == 0x4 ) {   // column select command.
+                            col |= (byte & 0xF0) >> 4;
+                            state = 6;
+                        } else if( cmd == 0x5 ) {   // column & row select command.
+                            col |= (byte & 0xF0) >> 4;
+                            row |= (byte & 0x0F) << 6;
+                            state = 51;
+                        }
+                        break;
+                    case 51:         // row & column select receive
+                        str = `<span style="color:green"><b>0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}</b></span>`;
+                        if( cmd == 0x3 ) {   // row & column select command.
+                            col |= (byte & 0xFC) >> 2;
+                        } else if( cmd == 0x5 ) {   // column & row select command.
+                            row |= (byte & 0xFC) >> 2;
+                        }
+                        state = 6;
+                        break;
+                    case 6:         // operate clock receive
+                        str = `0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}`;
+                        state++;
+                        break;
+                    case 7:         // shift clock receive
+                        str = `0x${('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2)}`;
+                        /*
+                        console.log(`cmd = 0x${cmd.toString(16)}`);
+                        console.log(`op = 0x${op.toString(16)}`);
+                        console.log(`chip = 0x${chip.toString(16)}`);
+                        console.log(`number = ${switchNum}`);
+                        console.log(`row = 0x${row.toString(16)}`);
+                        console.log(`col = 0x${col.toString(16)}`);
+                        console.log(`select = ${switchSelect}`);
+                        */
+                        state = 0;
+                        cmd = 0;
+                        op = 0;
+                        special = 0;
+                        chip = 0;
+                        row = 0;
+                        col = 0;
+                        switchNum = 0;
+                        switchSelect = [];
+                        break;
+                }
+                return str;
+            }).join(' ')
+        }
+
+/*
+        // 동적으로 생성된 element에서는 동작하지 않는다.
+        $('#EnableCtrl0').click(function(event) {
+            console.log(event);
+            if( event.ctrlKey ) {
+                console.log('ctrl + click');
+            } else if( event.shiftKey ) {
+                console.log('shift + click');
+            } else {
+                console.log('click');
+            }
+        });
+
+        // 동적/정적인 element(요소)에 모두 동작한다.
+        $(document).on('click', '#EnableCtrl', function(event) {
+            console.log(event);
+            if( event.ctrlKey ) {
+                console.log('ctrl + click');
+            } else if( event.shiftKey ) {
+                console.log('shift + click');
+            } else {
+                console.log('click');
+            }
+        });
+*/
+        function clicked(event) {
+//            console.log(`position : (${event.clientX}, ${event.clientY})`);
+
+            if( event.ctrlKey ) {
+                // page : 0 ~ 19
+                for(var page=0; page < 20; page++) {
+//                    console.log(`color = #${(parseInt(Math.random() * 0xFFFFFF)).toString(16)}`);
+                    $(`rect.PAGE${page}`).attr('fill', '#'+(0x1000000+(Math.random())*0xffffff).toString(16).substr(1,6));
+                }
+            }
+        }
+
+        function createPage(n) {
+            const svgWidth = 1100 + 100;      // 25 x 44 = 1100
+            const svgHeight = 850 + 100;      // 25 x 34 = 850
+            svgTag = document.createElementNS(xmlns, "svg");
+            svgTag.setAttributeNS(null, "id", "ProbeCard");
+            svgTag.setAttributeNS(null, "align", "center");
+            svgTag.setAttributeNS(null, "width", "100%");//svgWidth.toString());
+            svgTag.setAttributeNS(null, "height", "100%");//svgHeight.toString());
+            svgTag.setAttributeNS(null, "viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+//            svgTag.setAttributeNS(null, "onclick", `clicked(event)`);
+
+//            console.log(`SVG width(${svgTag.getAttribute('width')}), height(${svgTag.getAttribute('height')})`);
+
+//            $(document.createElementNS(xmlns, "rect")).attr({
+//                id:'Card',
+//                x:1, y:1, width:svgWidth-2, height:svgHeight-2, fill:"transparent", stroke:'gray', "stroke-width":1
+//            }).appendTo(svgTag);
+
+            var elem;
+
+            var sx = 50;
+            var sy = 50;
+            var x, y, w, h;
+
+            MaxDut = 60;
+
+            // FPGA rect.
+            x = sx;
+            y = sy;
+            w = 20;
+            h = 20;
+
+            $(document.createElementNS(xmlns, "ellipse")).attr({
+                cx:600, cy:475, rx:550+20, ry:425+20, class:"normalsvg", onclick:'clickProbeCard(this)'
+            }).appendTo(svgTag);
+
+//            console.log(`drawCell count = ${drawCell.length}`);
+            var idx = 1;
+            for(var row=0; row<34; row++) {
+                for(var col=0; col<44; col++) {
+                    var n = (row * 44) + col + 1;
+
+                    if( drawCell[n - 1] == 0 ) {
+                        x = x + (w + 5);
+                        continue;
+                    }
+
+                    $(document.createElementNS(xmlns, "text")).attr({
+                        x:x+(w/2), y:y+12, 'font-size':8, class:'centerAlign'
+                    }).text(`${idx}`).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "rect")).attr({
+                        id:`DUT-${idx}`, class:`DUT IdxInPage${(idx-1)%60} PAGE${parseInt((idx-1)/60)} DUT${idx}`,
+                        x:x, y:y, width:w, height:h, value:`${idx}`, stroke:'black', 'stroke-width':1, fill:'transparent', 'fill-opacity':0.5,
+                        onmouseover:"showTooltip(event);", onmouseout:"hideTooltip(event);", onclick:'dutClick(this)'
+                    }).appendTo(svgTag);
+                    x = x + (w + 5);
+                    idx++;
+                }
+                x = sx;
+                y = y + (w + 5);
+            }
+            TotalDUT = idx - 1;
+
+//            console.log(`total Dut = ${TotalDUT}`);
+            var svgContainer = document.getElementById("svgContainer");
+            svgContainer.appendChild(svgTag);
+
+        }
+
+
+        function showTooltip(event) {
+            let tooltip = document.getElementById("tooltip");
+            tooltip.innerHTML = event.target.getAttribute('value');
+            tooltip.style.display = 'block';
+            tooltip.style.left = event.pageX + 'px';
+            tooltip.style.top = event.pageY + 'px';
+        }
+
+        function hideTooltip(event) {
+            var tooltip = document.getElementById("tooltip");
+            tooltip.style.display = "none";
+        }
+
+        function clickProbeCard(card) {
+//            console.log(card);
+//            console.log(event);
+
+//            if( event.shiftKey == false ) return;
+
+            var url = 'Top.html';
+            // width와 height를 늘리면, Top.html의 SVG 그림이 커진다.
+            var width = 900;
+            var height = 530;
+            var top, left;
+            // 새로 생성되는 window는 screen을 벗어나지 않는다.
+            // 즉, top+height, left+width 가 screen을 벗어나면, top과 left를 조정한다. 
+            // 즉, if( (top + height) > window.screen.availHeight ) top = window.screen.availHeight - (height + 10);
+            // if( (left + width) > window.screen.availWidth ) left = window.screen.availWidth - (width + 10);
+
+            // screen의 좌측 상단에 새로운 window를 생성한다.
+//            top = 10;
+//            left = 10;
+
+            // screen의 우측 하단에 새로운 window를 생성한다.
+            top = window.screen.availHeight - (height + 10);
+            left = window.screen.availWidth - (width + 10);
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+//            console.log(`window position : (${window.screenX}, ${window.screenY}), size : ${window.innerWidth} x ${window.innerHeight}`);
+//            console.log(window);
+
+            // available screen size : window.screen.availLeft x window.screen.availHeight
+            // 1920 x 1160(1200)
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+                opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            console.log(`new window : position(${left}, ${top}), size(${width} x ${height})`);
+            window.open(url, 'Top Level Schematic', opt);
+        }
+
+        function dutClick(dut) {
+//            console.log(dut);
+            var num = $(dut).attr('value');
+            ClickPage = parseInt((num - 1) / 60);
+            console.log(`dut number = ${num}`);
+
+            $('.DUT').attr('stroke', 'black').attr('stroke-width', 1);
+            $(dut).attr('stroke', 'blue').attr('stroke-width', 3);
+
+            var url = 'BasicUnit.html';
+            // width와 height를 늘리면, Top.html의 SVG 그림이 커진다.
+            var width = 580;
+            var height = 390;
+            // screen의 좌측 상단에 새로운 window를 생성한다.
+            var top = 10;
+            var left = 10;
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+//            console.log(window);
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+            url += `&nDUT=${num}`;
+            url += `&ActiveDUT=${ActiveDUT}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+                opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+//            window.open(url, `${num}-DUT Connect`, opt);  // dut별로 새로운 window를 생성한다.
+            window.open(url, `DUT Connect`, opt);
+        }
+
+    </script>
+</body>
+</html>

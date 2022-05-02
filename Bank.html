@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>ProbeCard Bank Configuration</title>
+        <link href="./style.css" rel="stylesheet" media="all">
+        <style>
+        #project {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display:inline-block;
+            background-color: #333;
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: rgba(255,255,255,0.5) 2px 3px 6px;
+        }
+        </style>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+        <script src="./common.js"></script>
+    </head>
+
+    <body>
+        <center>
+        <div id="project">[ BANK(300-DUT) Schematic ]</div>
+        </center>
+        <div id="svgContainer" name="container" align="center"></div>
+
+    <script language="javascript">
+//        const xmlns = "http://www.w3.org/2000/svg";
+
+        var svgTag;
+
+        var TotalDUT;
+        var DutPower;
+        var nBank;
+//        $(document).ready(function(){
+        $(function() {
+            var oParams = getUrlParams();
+
+            if( Object.keys(oParams).length == 0 ) {
+                DutPower = 2;
+                TotalDUT = 1200;
+                nBank = 0;
+            } else {
+//                console.log(oParams);
+//                console.log(`oParams = ${JSON.stringify(oParams)}, ${Object.keys(oParams).length}`);
+                DutPower = parseInt(oParams.DutPower);
+                TotalDUT = parseInt(oParams.TotalDUT);
+                nBank = parseInt(oParams.nBank);
+            }
+//            console.log(`DutPower = ${DutPower}, Total DUT = ${TotalDUT}, Bank number = ${nBank}`);
+
+//        <div id="project"><b>[ BANK(300-DUT) Schematic ]</b></div>
+            $('#project').text(`[ ${nBank}-BANK Schematic ]`);
+
+            createPage();
+
+            // 브라우저의 Window 크기에 맞추어서 svg영역을 재설정한다.
+            var w = $(window).width();
+            var h = $(window).height();
+//            console.log(`window size = ${w} x ${h})`);
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+        });
+
+        // 브라우저 windows의 크기를 변경하면 Call된다.
+        $(window).resize( function() {
+            var w = $(window).width();
+            var h = $(window).height();
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+
+//            console.log(`window : (${w}, ${h}), ProbeCard : (${$('#ProbeCard').width()}, ${$('#ProbeCard').height()})\n`);
+        });
+
+
+        function createPage() {
+            const svgWidth = 800;      // 25 x 44 = 1100
+            const svgHeight = 440;      // 25 x 34 = 850
+
+            svgTag = document.createElementNS(xmlns, "svg");
+            svgTag.setAttributeNS(null, "id", "ProbeCard");
+            svgTag.setAttributeNS(null, "align", "center");
+            svgTag.setAttributeNS(null, "width", "100%");//svgWidth.toString());
+            svgTag.setAttributeNS(null, "height", "100%");//svgHeight.toString());
+            svgTag.setAttributeNS(null, "viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+
+//            console.log(`SVG width(${svgTag.getAttribute('width')}), height(${svgTag.getAttribute('height')})`);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:1, y:1, width:svgWidth-2, height:svgHeight-2, fill:"transparent", stroke:'gray', "stroke-width":1
+            }).appendTo(svgTag);
+
+            var elem;
+
+            var sx = 30;
+            var sy = 10;
+            var x, y;
+
+
+            for(var page=0; page<5; page++) {
+                if( page == 0 ) {
+                    x = sx;
+                    y = sy;
+                } else if( page == 1 ) {
+                    x = sx + 400;
+                    y = sy;
+                } else if( page == 2 ) {
+                    x = sx;
+                    y = sy + 150;
+                } else if( page == 3 ) {
+                    x = sx + 400;
+                    y = sy + 150;
+                } else if( page == 4 ) {
+                    x = sx;
+                    y = sy + 300;
+                }
+                drawPage(page, x, y);
+
+                x = x + 200;
+            }
+
+            x = sx + 400;
+            y = sy + 310;
+            drawInputLine(1, x+62, y, 250, '', 'iSCLK', 1);
+            drawInputLine(1, x+62, y+10, 250, '', 'iSDI', 1);
+            drawInputLine(1, x+62, y+20, 50, 'SCSN', 'iSCSN', 1);
+
+            drawOutputLine(0, x+50+100, y, 0, '', 'oSCLK', 1);
+            drawOutputLine(0, x+50+100, y+10, 0, '', 'oSDO', 1);
+            drawOutputLine(0, x+50+100, y+30, 70, 'MODE[19:0]', 'MD[23:0]', 3);
+            drawOutputLine(0, x+50+100, y+40, 70, 'CL[19:0]', 'CL[95:0]', 3);
+            drawCLModeControl(x+62, y-15, 100, 65);
+
+            drawOutputLine(0, x+50, y+60, 50, 'PPS[9:0]', 'PPS[9:0]', 3, 'transparent');
+            drawOutputLine(0, x+50, y+70, 50, 'SCLK', 'SCLK', 1, 'transparent');
+            drawOutputLine(0, x+50, y+80, 50, 'SDI', 'SDI', 1, 'transparent');
+            drawOutputLine(0, x+50, y+90, 50, 'SCSN', 'SCSN', 1, 'transparent');
+            drawOutputLine(0, x+50, y+100, 50, 'CSN', 'CSN', 1, 'transparent');
+
+            drawInputLine(1, x+50+200, y+90, 50, 'CLS[9:0]', 'CLS[9:0]', 3, 'transparent');
+
+            var svgContainer = document.getElementById("svgContainer");
+            svgContainer.appendChild(svgTag);
+
+        }
+
+        function drawPage(page, sx, sy) {
+//            console.log(`${page} Page drawing : (${sx}, ${sy})`);
+            /*
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy-20, width:360, height:140, 'value':`${page}`, fill:"transparent", stroke:'yellow', "stroke-width":1
+            }).appendTo(svgTag);
+            */
+
+            var len;
+            var net1 = '';
+            var net2 = '';
+            var net3 = '';
+            var net4 = '';
+            if( (page == 1) || (page == 3) ) {
+                net1 = `SCLK${page}`;
+                net2 = `SDO${page}`;
+                len = 250;
+            } else {
+                len = 50;
+            }
+            if( page == 0 ) {
+                net3 = `SCLK`;
+                net4 = `SDO`;
+            } else if( (page == 2) || (page == 4) ) {
+                net3 = `SCLK${page-1}`;
+                net4 = `SDO${page-1}`;
+            }
+            drawInputLine(1, sx+62, sy+10, len, net3, 'iSCLK', 1);
+            drawInputLine(1, sx+62, sy+20, len, net4, 'iSDI', 1);
+            drawInputLine(1, sx+62, sy+30, 50, 'SCSN', 'iSCSN', 1);
+
+            drawOutputLine(0, sx+50+100, sy+10, 50, net1, 'oSCLK', 1);
+            drawOutputLine(0, sx+50+100, sy+20, 50, net2, 'oSDO', 1);
+            drawOutputLine(0, sx+50+100, sy+35, 31, '', 'EN[119:0]', 3);
+            drawEnableControl(page, sx+62, sy-5, 100, 55);
+
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx+52, y1:sy+74, x2:sx+52, y2:sy+14, stroke:'darkred', "stroke-width":1
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "circle")).attr({
+                cx:sx+52, cy:sy+14, r:2, fill:"black", stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx+42, y1:sy+84, x2:sx+42, y2:sy+24, stroke:'darkred', "stroke-width":1
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "circle")).attr({
+                cx:sx+42, cy:sy+24, r:2, fill:"black", stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+            drawInputLine(1, sx+62, sy+70, 10, '', 'iSCLK', 1);
+            drawInputLine(1, sx+62, sy+80, 20, '', 'iSDI', 1);
+            drawInputLine(1, sx+62, sy+90, 50, 'CSN', 'iSCSN', 1);
+            drawOutputLine(1, sx+62, sy+105, 50, `CLS[${(page*2)+1}:${page*2}]`, 'CLS[1:0]', 3);
+
+            drawOutputLine(0, sx+50+100, sy+70, 0, '', 'oSCLK', 1);
+            drawOutputLine(0, sx+50+100, sy+80, 0, '', 'oSDO', 1);
+            drawInputLine(0, sx+50+100, sy+105, 50, '', 'CLS[119:0]', 3);
+
+            drawFlagRead(page, sx+62, sy+55, 100, 65);
+
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx+62+180-50, y1:sy+55, x2:sx+62+180-50, y2:sy+38, stroke:'blue', "stroke-width":3
+            }).appendTo(svgTag);
+            drawInputLine(1, sx+62+180, sy+50, 50, ``, 'EN[119:0]', 3);
+            drawInputLine(1, sx+62+180, sy+60, 50, `MODE[${((page+1)*4)-1}:${page*4}]`, 'MODE[3:0]', 3);
+            drawInputLine(1, sx+62+180, sy+70, 50, `CL[${((page+1)*4)-1}:${page*4}]`, 'CL[3:0]', 3);
+            drawInputLine(1, sx+62+180, sy+80, 50, `PPS[${(page*2)+1}:${page*2}]`, 'PPS[1:0]', 3);
+            drawOutputLine(1, sx+62+180, sy+105, 30, '', 'CLS[119:0]', 3);
+            LPS1002Group(page, sx+62+180, sy+35, 100, 85);
+        }
+
+        function drawEnableControl(page, sx, sy, w, h) {
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(w/2), y:sy+7, 'font-size':8, class:'centerAlign', fill:'blue'
+            }).text('ENABLE CONTROL').appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:w, height:h, 'value':`${page}`, fill:"transparent", stroke:'black', "stroke-width":1,
+                'onclick':'clickEnablePS1120(this);'
+            }).appendTo(svgTag);
+        }
+
+        function drawFlagRead(page, sx, sy, w, h) {
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(w/2), y:sy+7, 'font-size':8, class:"centerAlign", fill:'blue'
+            }).text('CLS FLAG READ').appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:w, height:h, 'value':`${page}`, fill:"transparent", stroke:'black', "stroke-width":1,
+                'onclick':'clickFlagPS1120(this);'
+            }).appendTo(svgTag);
+        }
+
+        function LPS1002Group(page, sx, sy, w, h) {
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(w/2), y:sy+7, 'font-size':8, class:"centerAlign", fill:'blue'
+            }).text(`PAGE[${(nBank*5)+page}] BLOCK`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:w, height:h, 'value':`${page}`, fill:"transparent", stroke:'black', "stroke-width":1,
+                'onclick':'clickPage(this);'
+            }).appendTo(svgTag);
+        }
+
+        function drawCLModeControl(sx, sy, w, h) {
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(w/2), y:sy+7, 'font-size':8, class:"centerAlign", fill:'blue'
+            }).text('MODE/CL CONTROL').appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:w, height:h, fill:"transparent", stroke:'black', "stroke-width":1,
+                'onclick':'clickModePS1120(this);'
+            }).appendTo(svgTag);
+        }
+
+        function clickEnablePS1120(page) {
+            var num = $(page).attr('value');
+//            console.log(`page number = ${num}`);
+
+            var url = 'EnablePS1120.html';
+            var width = 600;
+            var height = 800;
+            var top = ((window.screen.availHeight - height) / 2);
+            var left = ((window.screen.availWidth - width) / 2);
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+            url += `&nBank=${nBank}`;
+            url += `&nPage=${num}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+            opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            PageWindow = window.open(url, 'Enable Control PS1120', opt);
+        }
+
+        function clickFlagPS1120(page) {
+            var num = $(page).attr('value');
+//            console.log(`page number = ${num}`);
+
+            var url = 'FlagPS1120.html';
+            var width = 600;
+            var height = 800;
+            var top = ((window.screen.availHeight - height) / 2);
+            var left = ((window.screen.availWidth - width) / 2);
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+            url += `&nBank=${nBank}`;
+            url += `&nPage=${num}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+            opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            PageWindow = window.open(url, 'CLS Flag Read PS1120', opt);
+        }
+
+        function clickPage(page) {
+//            console.log(page);
+            var num = $(page).attr('value');
+//            console.log(`page number = ${num}`);
+
+            var url = 'Page.html';
+            var width = 1000;
+            var height = 800;
+            var top = window.screen.availHeight - (height + 10);
+            var left = 10;
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+            url += `&nBank=${nBank}`;
+            url += `&nPage=${num}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+            opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            PageWindow = window.open(url, 'Page Window Open', opt);
+        }
+
+        function clickModePS1120(page) {
+            var url = 'ModePS1120.html';
+            var width = 600;
+            var height = 800;
+            var top = ((window.screen.availHeight - height) / 2);
+            var left = ((window.screen.availWidth - width) / 2);
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&DutPower=${DutPower}`;
+            url += `&nBank=${nBank}`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+            opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            PageWindow = window.open(url, 'Mode Control PS1120', opt);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>Enable Control Switch Map</title>
+        <link href="./style.css" rel="stylesheet" media="all">
+        <style>
+        #project {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display:inline-block;
+            background-color: #333;
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: rgba(255,255,255,0.5) 2px 3px 6px;
+        }
+        </style>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+        <script src="./common.js"></script>
+    </head>
+
+    <body>
+        <center>
+        <div id="project">[ Schematic ]</div>
+        </center>
+        <div id="svgContainer" name="container" align="center"></div>
+
+    <script language="javascript">
+        var svgTag;
+
+        var TotalDUT;
+        var DutPower;
+        var nBank;
+        var nPage;
+//        $(document).ready(function(){
+        $(function() {
+            var oParams = getUrlParams();
+
+            if( Object.keys(oParams).length == 0 ) {
+                TotalDUT = 1200;
+                DutPower = 2;
+                nBank = 0;
+                nPage = 0;
+            } else {
+//                console.log(oParams);
+//                console.log(`oParams = ${JSON.stringify(oParams)}, ${Object.keys(oParams).length}`);
+                DutPower = parseInt(oParams.DutPower);
+                TotalDUT = parseInt(oParams.TotalDUT);
+                nBank = parseInt(oParams.nBank);
+                nPage = parseInt(oParams.nPage);
+            }
+//            console.log(`DutPower = ${DutPower}, Total DUT = ${TotalDUT}, Bank number = ${nBank}, Page number = ${nPage}`);
+
+            $('#project').text(`[ BANK[${nBank}], PAGE[${nPage}] Enable Control Shematic ]`);
+            createPage();
+
+            // 브라우저의 Window 크기에 맞추어서 svg영역을 재설정한다.
+            var w = $(window).width();
+            var h = $(window).height();
+//            console.log(`window size = ${w} x ${h})`);
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+        });
+
+        // 브라우저 windows의 크기를 변경하면 Call된다.
+        $(window).resize( function() {
+            var w = $(window).width();
+            var h = $(window).height();
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+
+//            console.log(`window : (${w}, ${h}), ProbeCard : (${$('#ProbeCard').width()}, ${$('#ProbeCard').height()})\n`);
+        });
+
+        function createPage() {
+            const svgWidth = 560;      // 25 x 44 = 1100
+            const svgHeight = 750;      // 25 x 34 = 850
+            svgTag = document.createElementNS(xmlns, "svg");
+            svgTag.setAttributeNS(null, "id", "ProbeCard");
+            svgTag.setAttributeNS(null, "align", "center");
+            svgTag.setAttributeNS(null, "width", "100%");//svgWidth.toString());
+            svgTag.setAttributeNS(null, "height", "100%");//svgHeight.toString());
+            svgTag.setAttributeNS(null, "viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+
+//            console.log(`SVG width(${svgTag.getAttribute('width')}), height(${svgTag.getAttribute('height')})`);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:1, y:1, width:svgWidth-2, height:svgHeight-2, fill:"transparent", stroke:'gray', "stroke-width":1
+            }).appendTo(svgTag);
+
+            var elem;
+
+            var sx = 10;
+            var sy = 30;
+            var x, y;
+
+            x = sx;
+            y = sy;
+
+            for(var n=0; n<4; n++) {
+
+                if( n == 0 ) {
+                    x = sx + 60;
+                    y = sy;
+                } else if( n == 1 ) {
+                    x = sx + 60;
+                    y = sy + 380;
+                } else if( n == 2 ) {
+                    x = sx + 350;
+                    y = sy;
+                } else if( n == 3 ) {
+                    x = sx + 350;
+                    y = sy + 380;
+                }
+
+                $(document.createElementNS(xmlns, "rect")).attr({
+                    x:x, y:y-10, width:120, height:340, class:'normalsvg'
+                }).appendTo(svgTag);
+
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-50} ${y} h 20 m -10 0 v 290`, class:'normalsvg'
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-48, y:y-5, 'font-size':8, class:'rightAlign'
+                }).text('1.8V').appendTo(svgTag);
+                for(var i=0; i<30; i++) {
+                    var idx = i % 10;
+                    var sw = (n * 30) + i;
+
+                    var InPadName = `AIN${sw}`;
+                    var OutPadName = `AOUT${sw}`;
+                    var OutLineName = `EN${EnableTable[sw]}`;
+                    if( (idx == 3) || (idx == 5) || (idx == 7) || (idx == 8) || (idx == 9) ) {
+                        InPadName = '';
+                    }
+                    drawSwitch(sw, x, y+((i+1)*10), 40, '', InPadName, OutPadName, OutLineName);
+                    if( (i % 10) == 9 ) y += 10;
+                }
+            }
+
+
+            var svgContainer = document.getElementById("svgContainer");
+            svgContainer.appendChild(svgTag);
+
+        }
+
+    </script>
+</body>
+</html>

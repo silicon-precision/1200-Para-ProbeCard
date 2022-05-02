@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>Basic Unit Configuation</title>
+        <link href="./style.css" rel="stylesheet" media="all">
+        <style>
+        #project {
+            font-size: 1.2rem;
+            font-weight: bold;
+            display:inline-block;
+            background-color: #333;
+            -webkit-background-clip: text;
+            -moz-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: rgba(255,255,255,0.5) 2px 3px 6px;
+        }
+        </style>
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    </head>
+
+    <body>
+        <center>
+        <div id="project">[ Basic Unit Status ]</div>
+        </center>
+        <div id="svgContainer" name="container" align="center"></div>
+
+
+    <script language="javascript">
+        const xmlns = "http://www.w3.org/2000/svg";
+        const svgWidth = 480;//640;
+        const svgHeight = 280;
+
+        var svgTag;
+
+        var TotalDUT;
+        var DutPower;           // DUT Power
+        var nUNIT;
+        var nBANK;
+        var nPAGE;
+        var ActiveDUT;
+        var ActiveUNIT;
+
+        function getUrlParams() {
+            var params = {};
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str, key, value) { params[key] = value; });
+            return params;
+        }
+
+//        $(document).ready(function(){
+        $(function() {
+
+            var oParams = getUrlParams();
+//            console.log(`oParams length = ${Object.keys(oParams).length}`);
+
+            if( Object.keys(oParams).length == 0 ) {
+                TotalDUT = 1200;
+                DutPower = 2;
+                nDUT = 1;
+            } else {
+//                console.log(oParams);
+//                console.log(`oParams = ${JSON.stringify(oParams)}, ${Object.keys(oParams).length}`);
+                TotalDUT = parseInt(oParams.TotalDUT);
+                DutPower = parseInt(oParams.DutPower);
+                nDUT = parseInt(oParams.nDUT);              // 1 ~ 1200
+                ActiveDUT = parseInt(oParams.ActiveDUT);    // 1 ~ 60
+            }
+            if( ActiveDUT ) {
+                ActiveUNIT = (((nDUT - 1) % 60) >> 1) == (((ActiveDUT - 1) % 60) >> 1);
+            }
+            nBANK = parseInt((nDUT-1) / 300);
+            nPAGE = parseInt(((nDUT-1) % 300) / 60);
+            console.log(`TotalDUT = ${TotalDUT}, DutPower = ${DutPower}, Selected Dut = ${nDUT}, Active Dut = ${ActiveDUT}`);
+//            console.log(`Active Dut = ${ActiveDUT}, Unit = ${(nDUT-1) >> 1}, Active Unit = ${ActiveUNIT}`);
+//            console.log(`Bank = ${nBANK}, Page = ${nPAGE}`);
+
+            $('#project').text(`[ BANK[${parseInt(nDUT/300)}] : DUT-${nDUT} Connect & Status ]`);
+
+            createPage(DutPower);
+
+            // 브라우저의 Window 크기에 맞추어서 svg영역을 재설정한다.
+            var w = $(window).width();
+            var h = $(window).height();
+//            console.log(`window size = ${w} x ${h})`);
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+        });
+
+        // 브라우저 windows의 크기를 변경하면 Call된다.
+        $(window).resize( function() {
+            var w = $(window).width();
+            var h = $(window).height();
+
+            $("#ProbeCard").width(w-10);
+            $("#ProbeCard").height(h-60);
+
+            clientWidth = $('#ProbeCard').width();
+            clientHeight = $('#ProbeCard').height();
+//            console.log(`window : (${w}, ${h}), ProbeCard : (${clientWidth}, ${clientHeight})\n`);
+        });
+
+        function clicked(event) {
+//            console.log(this);
+//            console.log(`position : (${event.clientX}, ${event.clientY})`);
+        }
+        function createPage(n) {
+            svgTag = document.createElementNS(xmlns, "svg");
+            $(svgTag).attr({
+                id:'Canvas', align:'center', width:'100%', viewBox:`0 0 ${svgWidth} ${svgHeight}`, onlick:'clicked(event)',
+            });
+
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:1, y:1, width:svgWidth-2, height:svgHeight-2, fill:"transparent", stroke:'gray', "stroke-width":1
+            }).appendTo(svgTag);
+
+            var elem;
+            var ctrl = 0;
+
+            var sx = 70;//20;
+            var sy = 30;
+            var x, y, w, h;
+
+            x = sx;
+            y = sy;
+            w = 100;
+            h = 100;
+
+            if( ActiveUNIT ) {
+                ctrl = (ActiveDUT % 2) ? ((1<<2)|(1<<0)) : ((1<<3)|(1<<1));      // odd DUT : even DUT
+            }
+            drawEnablePS1120(nDUT, x, y, ctrl);
+
+//            y = sy+100;
+//            drawModePS1120(nDUT, x, y);
+
+            y = sy + 150;
+            drawFlagPS1120(nDUT, x, y, ctrl);
+
+            x = sx + 200;
+            y = sy;
+            ctrl = 0;
+            if( ActiveUNIT ) {
+                ctrl = (ActiveDUT % 2) ? 0x1 : 0x2;
+//                if( (nDUT % 2) == 0 ) {             // even DUT
+//                    ctrl = 0x2;
+//                } else {
+//                    ctrl = 0x1;
+//                }
+            }
+            console.log(`ctrl = ${ctrl}`);
+            drawLPS1004(nDUT, x, y+20, ctrl);
+
+            /*
+            drawLPS1002(0, nDUT, x, y, ctrl);       // first : odd DUT
+
+            y = sy + 20 + 110;
+            drawLPS1002(1, nDUT, x, y, ctrl);       // even DUT
+            */
+
+
+            x = sx + 350;
+            y = sy + 26;
+            var n = ((nDUT % 2) == 1) ? nDUT : nDUT-1;
+            drawDUT(n, x, y);
+
+            y = sy + 121;
+            drawDUT(n+1, x, y);
+
+            var svgContainer = document.getElementById("svgContainer");
+            svgContainer.appendChild(svgTag);
+        }
+
+        function drawLPS1004(n, sx, sy, ctrl) {
+            var str;
+//            console.log(`dut = ${n}, coordinate : (${sx}, ${sy})`);
+//            console.log(`ctrl = 0x${ctrl.toString(16)}`);
+
+            var pps = (parseInt((n-1) / 60)*2);
+            var sEN = (((n - 1) % 60) >> 1) * 4;
+            var x = sx;
+            var y = sy;
+            drawPushButton(x, y+25, 20, ctrl & 0x1, '', '', 'red');
+            drawPushButton(x, y+60, 20, ctrl & 0x2, '', '', 'red');
+            drawPushButton(x, y+95, 20, ctrl & 0x1, '', '', 'red');
+            drawPushButton(x, y+130, 20, ctrl & 0x2, '', '', 'red');
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:x+(68/2), y:y-8, 'font-size':12, class:'centerAlign'
+            }).text(`LPS1004 #${parseInt((n-1)>>1)}`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:x, y:y, width:68, height:170, class:'normalsvg'
+            }).appendTo(svgTag);
+
+            // flag pin.
+//            for(var j=0; j<4; j++) {
+//                if( j==0 ) {
+//                    str = `T${(i*2)}`;
+//                } else if( j==1 ) {
+//                    str = `C${(i*2)}`;
+//                } else if( j==2 ) {
+//                    str = `T${(i*2)+1}`;
+//                } else if( j==3 ) {
+//                    str = `C${(i*2)+1}`;
+//                }
+                // PPS text
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-42} ${y+158} l 4 -4 h 8 v 8 h -8 l -4 -4`, class:'normalsvg'
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-75, y:y+148, 'font-size':8, class:'rightAlign'
+                }).text(`iCLS[${sEN+3}:${sEN}]`).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-30} ${y+158} h 30`, stroke:'black', 'stroke-width':2,
+                }).appendTo(svgTag);
+
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x+30, y:y+160, 'font-size':8, class:'centerAlign',
+//                    fill:(((j==1)&&(ctrl & 1)) || ((j==3)&&(ctrl & 0x2)))?'red':'black'
+                }).text(`iCLS[${sEN+3}:${sEN}]`).appendTo(svgTag);
+//            }
+
+            // EN[0/2] text.
+            var path;
+            for(var i=0; i<2; i++) {
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-(40), y:y+6, 'font-size':8, class:'rightAlign', fill:(ctrl & 0x1)?'red':'black'
+                }).text(`EN${sEN+(i*2)}`).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-50} ${y+10} h 50`, fill:'transparent', stroke:'blue', 'stroke-width':1
+                }).appendTo(svgTag);
+                path = (i == 0) ? `M ${x+68} ${y+25} h 82` : `M ${x+68} ${y+25} h 40 v -60 h 42`;
+                $(document.createElementNS(xmlns, "path")).attr({ d:path, class:'normalsvg' }).appendTo(svgTag);
+
+                // PPS text
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-52} ${y+21} v 8 h 8 l 4 -4 l -4 -4 h -8`, class:'normalsvg'
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "circle")).attr({
+                    cx:x+5, cy:y+25, r:2, class:"dot"
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-80, y:y+26, 'font-size':8, class:'rightAlign'
+                }).text(`PPS${pps+i}`).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-40} ${y+25} h 45 v 35`, class:'normalsvg'
+                }).appendTo(svgTag);
+
+                // EN[1/3] text.
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-(40), y:y+41, 'font-size':8, class:'rightAlign', fill:(ctrl & 0x2)?'red':'black'
+                }).text(`EN${sEN+((i*2)+1)}`).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x-50} ${y+45} h 50`, fill:'transparent', stroke:'blue', 'stroke-width':1
+                }).appendTo(svgTag);
+                path = (i == 0) ? `M ${x+68} ${y+60} h 30 v 60 h52` : `M ${x+68} ${y+60} h 82`;
+                $(document.createElementNS(xmlns, "path")).attr({ d:path, class:'normalsvg' }).appendTo(svgTag);
+                
+                y += 70;
+            }
+
+
+            x = sx;
+            y = sy;
+
+//            var path = (i == 0) ? `M ${x+68} ${y+25} h 82` : `M ${x+68} ${y+25} h 40 v -120 h 42`;
+//            $(document.createElementNS(xmlns, "path")).attr({ d:path, class:'normalsvg' }).appendTo(svgTag);
+//            path = (i == 0) ? `M ${x+68} ${y+60} h 30 v 120 h52` : `M ${x+68} ${y+60} h 82`;
+//            $(document.createElementNS(xmlns, "path")).attr({ d:path, class:'normalsvg' }).appendTo(svgTag);
+        }
+
+        const channelBase = [0, 60];
+        function drawEnablePS1120(n, sx, sy, ctrl) {
+//            console.log(`dut = ${n}, coordinate : (${sx}, ${sy})`);
+//            console.log(`ctrl = 0x${ctrl.toString(16)}`);
+
+//            var sEN = (((n%60) - 1) >> 1) * 4;
+            var sEN = (((n - 1)%60) >> 1) * 4;
+            // DUT = 1/2(UNIT = 0)  : channel(0, 1, 60, 61)
+            // DUT = 3/4(UNIT = 1)  : channel(2, 3, 62, 63)
+            // DUT = 5/6(UNIT = 2)  : channel(4, 5, 64, 65)
+            // DUT = 7/8(UNIT = 3)  : channel(6, 7, 66, 67)
+            // DUT = 9/10(UNIT = 4) : channel(8, 9, 66, 67)
+            // DUT = n : channel((n-1)%60), ((n-1)%60)+1, ((n-1)%60)+60)
+            var sChannel = (((n-1)>>1) << 1) % 60;
+            for(var i=0; i<4; i++) {
+                if( i == 2 ) sy += 10;
+                var y = sy + 20 + (i * 10);
+
+                if( i == 0 ) {
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx-30} ${y-10} h 20`, stroke:'black', fill:'transparent'
+                    }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "text")).attr({
+                        x:sx-28, y:y-15, 'font-size':8, class:'rightAlign'
+                    }).text(`1.8V`).appendTo(svgTag);
+                }
+
+                if( i == 2 ) {
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx-20} ${y-20} v 20 h 20`, class:'normalsvg'
+                    }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "circle")).attr({
+                        cx:sx-20, cy:y-20, r:2, class:"dot"
+                    }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx+24} ${y-10} h 20`, class:'normalsvg', 'stroke-dasharray':3
+                    }).appendTo(svgTag);
+                } else {
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx-20} ${y-10} v 10 h 20`, class:'normalsvg'
+                    }).appendTo(svgTag);
+                    if( i != 0 ) {
+                        $(document.createElementNS(xmlns, "circle")).attr({
+                            cx:sx-20, cy:y-10, r:2, class:"dot"
+                        }).appendTo(svgTag);
+                    }
+                    if( i == 3 ) {
+                        $(document.createElementNS(xmlns, "path")).attr({
+                            d:`M ${sx+24} ${y+10} h 20`, class:'normalsvg', 'stroke-dasharray':3
+                        }).appendTo(svgTag);
+                    }
+                }
+
+                var ch = sChannel + ((i & 0x2) ? 60 : 0) + (i & 0x1);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+50, y:y-3, 'font-size':8, fill:(ctrl & (1<<i))?'red':'black', class:'rightAlign'
+                }).text(`${ch}`).appendTo(svgTag);
+
+                drawSwitch(0, sx, y, 20, ctrl & (1<<i), '', '', 'red');
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${sx+98} ${y} h -30`, class:'normalsvg'
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+80, y:y-3, 'font-size':8, fill:(ctrl & (1<<i))?'red':'black', class:'rightAlign'
+                }).text(`EN${sEN+i}`).appendTo(svgTag);
+            }
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(68/2), y:sy-18, 'font-size':12, class:'centerAlign'
+            }).text(`PS1120(EN) #${(parseInt((n-1)/60)%5)}`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy-10, width:68, height:80, class:'normalsvg', onclick:'PS1120SwitchMap()'
+            }).appendTo(svgTag);
+        }
+
+        function drawModePS1120(n, sx, sy) {
+//            console.log(`dut = ${n}, coordinate : (${sx}, ${sy})`);
+
+            drawSwitch(0, sx, sy+20, 20, 0, '', '');
+            drawSwitch(0, sx, sy+30, 20, 0, '', '', 'blue');
+            drawSwitch(0, sx, sy+40, 20, 0, '', '');
+            drawSwitch(0, sx, sy+50, 20, 0, '', '', 'blue');
+//            drawSwitch(0, sx, sy+60, 20, 0, '', '', 'blue');
+//            drawSwitch(0, sx, sy+70, 20, 0, '', '', 'blue');
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(68/2), y:sy-8, 'font-size':12, class:'centerAlign'
+            }).text(`PS1120(MD)`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:68, height:70, class:"normalsvg"
+            }).appendTo(svgTag);
+        }
+
+        function drawFlagPS1120(n, sx, sy, ctrl) {
+//            console.log(`dut = ${n}, coordinate : (${sx}, ${sy})`);
+//            console.log(`ctrl = 0x${ctrl.toString(16)}`);
+
+            var sEN = (((n - 1)%60) >> 1) * 4;
+            var sChannel = (((n - 1) >> 1) << 1) % 60;
+            for(var i=0; i<4; i++) {
+                if( i==2 ) sy += 10;
+                var y = sy + 20 + (i * 10);
+
+                // input line & text
+                if( (i == 0) || (i == 2)) {
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx} ${y} h -30`, class:'normalsvg'
+                    }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "circle")).attr({
+                        cx:sx-10, cy:y, r:2, class:"dot"
+                    }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx-42} ${y} l 4 4 h 8 v -8 h -8 l -4 4`, stroke:'black', fill:'green'
+                    }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "text")).attr({
+                        x:sx-66, y:y+1, 'font-size':8, class:'rightAlign'
+                    }).text(`CLS${(nBANK * 10) + (nPAGE * 2) + (i>>1)}`).appendTo(svgTag);
+                } else {
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx-10} ${y-10} v 10 h 10`, class:'normalsvg'
+                    }).appendTo(svgTag);
+
+                    $(document.createElementNS(xmlns, "path")).attr({
+                        d:`M ${sx+24} ${y+10} h 20`, class:'normalsvg', 'stroke-dasharray':3
+                    }).appendTo(svgTag);
+                }
+
+                var ch = sChannel + ((i & 0x2) ? 60 : 0) + (i & 0x1);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+50, y:y-3, 'font-size':8, fill:(ctrl & (1<<i))?'red':'black', class:'rightAlign'
+                }).text(`${ch}`).appendTo(svgTag);
+
+                drawSwitch(1, sx, y, 20, ctrl & (1<<i), '', '', 'red');
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${sx+68} ${y} h 30`, class:'normalsvg'
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+80, y:y-3, 'font-size':8, fill:(ctrl & (1<<i))?'red':'black', class:'rightAlign'
+                }).text(`iCLS${sEN+i}`).appendTo(svgTag);
+            }
+//            drawSwitch(1, sx, sy+20, 20, 0, '', '');
+//            drawSwitch(1, sx, sy+30, 20, 0, '', '', 'blue');
+//            drawSwitch(1, sx, sy+40, 20, 0, '', '');
+//            drawSwitch(1, sx, sy+50, 20, 0, '', '', 'blue');
+//            drawSwitch(0, sx, sy+60, 20, 0, '', '', 'blue');
+//            drawSwitch(0, sx, sy+70, 20, 0, '', '', 'blue');
+//            drawSwitch(0, sx, sy+80, 20, 0, '', '', 'blue');
+//            drawSwitch(0, sx, sy+90, 20, 0, '', '', 'blue');
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(68/2), y:sy-18, 'font-size':12, class:'centerAlign'
+            }).text(`PS1120(CLS) #${parseInt((n-1)/60)%5}`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy-10, width:68, height:80, class:'normalsvg'
+            }).appendTo(svgTag);
+        }
+
+        function drawLPS1002(i, n, sx, sy, ctrl) {
+            var str;
+//            console.log(`dut = ${n}, coordinate : (${sx}, ${sy})`);
+//            console.log(`ctrl = 0x${ctrl.toString(16)}`);
+
+            drawPushButton(sx, sy+35, 20, ctrl & 0x1, '', '', 'red');
+            drawPushButton(sx, sy+70, 20, ctrl & 0x2, '', '', 'red');
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+(68/2), y:sy+8, 'font-size':12, class:'centerAlign'
+            }).text(`LPS1002`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:68, height:100, class:'normalsvg'
+            }).appendTo(svgTag);
+
+            for(var j=0; j<4; j++) {
+                if( j==0 ) {
+                    str = `T${(i*2)}`;
+                } else if( j==1 ) {
+                    str = `C${(i*2)}`;
+                } else if( j==2 ) {
+                    str = `T${(i*2)+1}`;
+                } else if( j==3 ) {
+                    str = `C${(i*2)+1}`;
+                }
+                $(document.createElementNS(xmlns, "text")).attr({
+//                    x:sx+(68/2), y:sy+95, 'font-size':8, 'font-weight':"bold",
+                    x:sx+10+(j*16), y:sy+95, 'font-size':8, class:'centerAlign',
+                    fill:(((j==1)&&(ctrl & 1)) || ((j==3)&&(ctrl & 0x2)))?'red':'black'
+                }).text(str).appendTo(svgTag);
+            }
+
+            // EN[0/2] text.
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx-(40), y:sy+16, 'font-size':8, class:'rightAlign', fill:(ctrl & 0x1)?'red':'black'
+            }).text(`EN${(i*2)}`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "path")).attr({
+                d:`M ${sx-50} ${sy+20} h 50`, fill:'transparent', stroke:'blue', 'stroke-width':1
+            }).appendTo(svgTag);
+
+            // PPS text
+            $(document.createElementNS(xmlns, "path")).attr({
+                d:`M ${sx-52} ${sy+31} v 8 h 8 l 4 -4 l -4 -4 h -8`, class:'normalsvg'
+            }).appendTo(svgTag);
+                    $(document.createElementNS(xmlns, "circle")).attr({
+                        cx:sx-20, cy:sy+35, r:2, class:"dot"
+                    }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx-75, y:sy+36, 'font-size':8, class:'rightAlign'
+            }).text(`PPS${i}`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "path")).attr({
+                d:`M ${sx-40} ${sy+35} h 40 m -20 0 v 35 h 20`, class:'normalsvg'
+            }).appendTo(svgTag);
+
+            // EN[1/3] text.
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx-(40), y:sy+51, 'font-size':8, class:'rightAlign', fill:(ctrl & 0x2)?'red':'black'
+            }).text(`EN${(i*2)+1}`).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "path")).attr({
+                d:`M ${sx-50} ${sy+55} h 50`, fill:'transparent', stroke:'blue', 'stroke-width':1
+            }).appendTo(svgTag);
+
+            var path = (i == 0) ? `M ${sx+68} ${sy+35} h 82` : `M ${sx+68} ${sy+35} h 40 v -120 h 42`;
+            $(document.createElementNS(xmlns, "path")).attr({ d:path, class:'normalsvg' }).appendTo(svgTag);
+            path = (i == 0) ? `M ${sx+68} ${sy+70} h 30 v 120 h52` : `M ${sx+68} ${sy+70} h 82`;
+            $(document.createElementNS(xmlns, "path")).attr({ d:path, class:'normalsvg' }).appendTo(svgTag);
+        }
+
+        function drawDUT(n, sx, sy) {
+            var color = 'black';
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+25, y:sy-8, 'font-size':12, class:'centerAlign'
+            }).text(`DUT-${n}`).appendTo(svgTag);
+
+            if( ActiveDUT ) {
+                if( ((n-1) % 60) == (ActiveDUT-1) ) color = 'red';
+            }
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+3, y:sy+20, 'font-size':8, fill:color, class:'rightAlign'
+            }).text(`VDD1`).appendTo(svgTag);
+
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:sx+3, y:sy+30, 'font-size':8, fill:color, class:'rightAlign'
+            }).text(`VDD2`).appendTo(svgTag);
+
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx, y:sy, width:50, height:50, fill:"transparent", stroke:(n == nDUT)?'blue':'black', "stroke-width":(n == nDUT)?2:1
+            }).appendTo(svgTag);
+        }
+
+
+        function drawSwitch(direct, sx, sy, len, ctrl, iName, oName, color) {
+            if( iName != '' ) {
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+(len/2), y:sy-4, 'font-size':8, class:'centerAlign'
+                }).text(iName).appendTo(svgTag);
+            }
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx, y1:sy, x2:sx+len, y2:sy, class:"normalsvg"
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "circle")).attr({
+                cx:sx+len+2, cy:sy, r:2, fill:(ctrl==0)?"transparent":color, stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+            if( ctrl == 0 ) {   // Off
+                $(document.createElementNS(xmlns, "line")).attr({
+                    x1:sx+len+4, y1:(direct==0)?sy:sy-6, x2:sx+(len*2)+4, y2:(direct==0)?sy-6:sy, stroke:'black', "stroke-width":1
+                }).appendTo(svgTag);
+            } else {            // On
+                $(document.createElementNS(xmlns, "line")).attr({
+                    x1:sx+len+4, y1:sy, x2:sx+(len*2)+4, y2:sy, stroke:color, "stroke-width":1
+                }).appendTo(svgTag);
+            }
+
+            $(document.createElementNS(xmlns, "circle")).attr({
+                cx:sx+(len*2)+4+2, cy:sy, r:2, fill:(ctrl==0)?"transparent":color,
+                stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx+(len*2)+4+4, y1:sy, x2:sx+(len*3)+4+4, y2:sy, class:"normalsvg"
+            }).appendTo(svgTag);
+
+            if( oName != '' ) {
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+(len*2)+8+(len/2), y:sy-4, 'font-size':8, class:'centerAlign'
+                }).text(oName).appendTo(svgTag);
+            }
+        }
+
+        function drawPushButton(sx, sy, len, ctrl, iName, oName, color) {
+//            console.log(`ctrl = 0x${ctrl.toString(16)}`);
+            if( iName != '' ) {
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+(len/2), y:sy-4, 'font-size':8, class:'centerAlign'
+                }).text(iName).appendTo(svgTag);
+            }
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx+5, y1:sy, x2:sx+len, y2:sy, stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "circle")).attr({
+                cx:sx+len+2, cy:sy, r:2, fill:(ctrl==0)?"transparent":color, stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+
+            $(document.createElementNS(xmlns, "path")).attr({
+                d:`M ${sx} ${sy-15} h ${len+(len/2)+4} v ${(ctrl==0)?9:15}`, fill:'transparent', stroke:'blue', 'stroke-width':1
+            }).appendTo(svgTag);
+
+            if( ctrl == 0 ) {   // Off
+                $(document.createElementNS(xmlns, "line")).attr({
+                    x1:sx+len+4, y1:sy-6, x2:sx+(len*2)+4, y2:sy-6, stroke:'blue', "stroke-width":1
+                }).appendTo(svgTag);
+            } else {            // On
+                $(document.createElementNS(xmlns, "line")).attr({
+                    x1:sx+len+4, y1:sy, x2:sx+(len*2)+4, y2:sy, stroke:color, "stroke-width":1
+                }).appendTo(svgTag);
+            }
+
+            $(document.createElementNS(xmlns, "circle")).attr({
+                cx:sx+(len*2)+4+2, cy:sy, r:2, fill:(ctrl==0)?"transparent":color,
+                stroke:'black', "stroke-width":1
+            }).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "line")).attr({
+                x1:sx+(len*2)+4+4, y1:sy, x2:sx+(len*3)+4+4, y2:sy, class:"normalsvg"
+            }).appendTo(svgTag);
+
+            if( oName != '' ) {
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:sx+(len*2)+8+(len/2), y:sy-4, 'font-size':8, class:'centerAlign'
+                }).text(oName).appendTo(svgTag);
+            }
+
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:sx+(len/2), y:sy-10, width:(len*2)+8, height:20, fill:"transparent",
+                stroke:(ctrl == 0)?'black':'red', "stroke-width":1, 'stroke-dasharray':1
+            }).appendTo(svgTag);
+        }
+
+        function drawOutputLine(direct, x, y, lineName, padName, w, color) {
+            if( direct == 1 ) {
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x} ${y} m 0 4 l 4 4 h 8 v -8 h -8 l -4 4`, stroke:'black', fill:(color == undefined) ? 'green' : color
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x+15, y:y+5, 'font-size':8, class:'rightAlign'
+                }).text(padName).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "line")).attr({
+                    x1:x, y1:y+4, x2:x-60, y2:y+4, fill:"transparent", stroke:(w==1)?'darkred':'blue', "stroke-width":w
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-50, y:y, 'font-size':8, class:'rightAlign', fill:'red'
+                }).text(lineName).appendTo(svgTag);
+            } else {
+                $(document.createElementNS(xmlns, "path")).attr({
+                    d:`M ${x} ${y} v 8 h 8 l 4 -4 l -4 -4 h -8`, stroke:'black', fill:(color == undefined) ? 'green' : color
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x-38, y:y+5, 'font-size':8, class:'rightAlign'
+                }).text(padName).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "line")).attr({
+                    x1:x+12, y1:y+4, x2:x+92, y2:y+4, fill:"transparent", stroke:(w==1)?'darkred':'blue', "stroke-width":w
+                }).appendTo(svgTag);
+                $(document.createElementNS(xmlns, "text")).attr({
+                    x:x+43, y:y, 'font-size':8, fill:'red', class:'rightAlign'
+                }).text(lineName).appendTo(svgTag);
+            }
+        }
+
+        function PS1120SwitchMap() {
+//            console.log('SwitchMap()');
+
+            var url = 'PS1120.html';
+            // width와 height를 늘리면, Top.html의 SVG 그림이 커진다.
+            var width = 1100;
+            var height = 650;
+            var top, left;
+
+            // screen의 좌측 하단에 새로운 window를 생성한다.
+            left = 10;
+            top = window.screen.availHeight - (height + 10);
+
+            // dual screen.
+            left += (window.screenX > window.screen.availLeft) ?  window.screen.availLeft : 0;
+
+            url += `?TotalDUT=${TotalDUT}`;
+            url += `&nGroup=10`;
+
+            var opt = `toolbar=no, menubar=no, location=no, status=no, target=_blank`;
+                opt += `, width=${width}, height=${height}, top=${top}, left=${left}`;
+
+            window.open(url, 'PS1120 Row & Column Switch Map', opt);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="./style.css" rel="stylesheet" media="all">
+    <style>
+        .blackStroke {
+            stroke: black;
+            stroke-width: 1;
+        }
+        .blueStroke {
+            stroke: blue;
+            stroke-width: 1;
+        }
+    </style>
+
+    <!-- jquery Library -->
+    <!--
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="./jquery-3.4.1.min.js"></script>
+    -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script>
+        const xmlns = "http://www.w3.org/2000/svg";
+
+        function getUrlParams() {
+            var params = {};
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str, key, value) { params[key] = value; });
+            return params;
+        }
+
+//        $(document).ready(function(){
+        $(function(){
+            // window width & height.
+//            console.log(`Window width = ${window.innerWidth}, height = ${window.innerHeight}`);
+
+            // 부모 윈도우의 요소를 read한다.
+//            var site = opener.document.getElementById('siteNumber').value;
+
+            // 부모 윈도우의 변수를 참조한다.
+//            maxDUTs = opener.maxDUTs;
+//            DutInfo = opener.DutInfo;
+
+            oParams = getUrlParams();
+//            console.log(`oParams = ${JSON.stringify(oParams)}`);
+
+            var bytes = oParams.Bytes.split(',');
+
+            // SVG(Scalable Vector Graphics) 영역 생성하기.
+            var svg = document.createElementNS(xmlns, "svg");
+            svg.setAttributeNS(null, "id", "Canvas");
+            svg.setAttributeNS(null, "align", "center");
+            var w = (bytes.length * 90) + 40;
+            var h = window.innerHeight - 80;
+            svg.setAttributeNS(null, "width", w.toString());
+            svg.setAttributeNS(null, "height", h.toString());
+//            console.log(`svg width = ${w}, height = ${h}`);
+
+            var defs = document.createElementNS(xmlns, "defs");
+            var marker = document.createElementNS(xmlns, "marker");
+            marker.setAttribute("id", 'Triangle');
+            marker.setAttribute("markerWidth", 5);
+            marker.setAttribute("markerHeight", 5);
+            marker.setAttribute("refX", 1);
+            marker.setAttribute("refY", 4);
+            marker.setAttribute("viewBox", "0 0 8 8");
+            marker.setAttribute("orient", "auto");
+
+            var path = document.createElementNS(xmlns, "path");
+            path.setAttribute("d","M 0 0 L 8 4 L 0 8 z");
+
+            marker.appendChild(path);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
+
+            document.getElementById("svgContainer").appendChild(svg);    // svgContainer에 추가.
+
+            TimingDraw(bytes);
+
+            $(window).blur(function() {
+//                console.log('focus out');
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <center>
+    <div id="project">SPI Command Timing</div>
+    <div id="svgContainer" name="container" align="center"></div>
+    </center>
+
+    <script language="javascript">
+        function toHexString(bytes) {
+            return bytes.map(function(byte) {
+                return '0x' + ('0' + (byte & 0xFF).toString(16).toUpperCase()).slice(-2);
+            }).join(' ')
+        }
+
+        function TimingDraw(bytes) {
+            var svg = document.getElementById("Canvas");
+            console.log(`bytes(${bytes.length}) = ${toHexString(bytes)}`);
+
+            var sx;        // x start.
+            var sy;        // y start.
+            var h = 50;         // line의 높이 : 50-pixel
+            var dh = 20;        // line간 간격 : 20-pixel
+            var clock = 10;     // clock length : 10-pixel.
+            var x;
+            var y;
+            var n;
+            var length;
+            var lineOfs = h + dh;
+
+            sx = 40;
+            sy = 50;
+
+            const SignalName = ['SCLK', 'SDO', 'CSN'];
+
+            // Signal Name Display.
+            x = sx;
+            y = sy;
+            for(var i=0; i<3; i++) {
+                $(document.createElementNS(xmlns, 'text')).attr({
+                    x:x-20, y:y+(h/2), class:'centerAlign', fill:'black', 'font-size':16
+                }).text(SignalName[i]).appendTo(svg);
+                y += lineOfs;
+            }
+
+            // Signal Setup line display.
+            x = sx;     // 40
+            y = sy;     // 50
+            n = 2;          // setup time : 2-clock.
+            length = n * clock;
+            // SCLK line draw.
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y, x2:x+length, y2:y, class:'blackStroke'
+            }).appendTo(svg);
+            // SDO line draw.
+            y = y + lineOfs;
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y+(h/2), x2:x+length, y2:y+(h/2), class:'blackStroke'
+            }).appendTo(svg);
+            // CSN line draw.
+            y = y + lineOfs;
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y, x2:x+length-5, y2:y, class:'blackStroke'
+            }).appendTo(svg);
+//            console.log(`sx = ${sx}, sy = ${sy}, x = ${x}, y = ${y}`);
+
+
+            // vertical line과 nibble 값을 Display.
+            x = sx + (n * clock);
+            y = sy;
+
+//            sx = x;
+            for(var i=0; i<(bytes.length * 2); i++) {
+                if( i & 0x1 ) {
+                    val = bytes[i>>1] & 0x0F;
+                } else {
+                    val = (bytes[i>>1] & 0xF0) >> 4;
+                }
+                $(document.createElementNS(xmlns, 'line')).attr({
+                    x1:x, y1:30, x2:x, y2:260, stroke:'black', 'stroke-dasharray':2
+                }).appendTo(svg);
+
+                $(document.createElementNS(xmlns, 'text')).attr({
+                    x:x+20, y:115, class:'centerAlign', fill:'black', 'font-size':12
+                }).text(val.toString(16).toUpperCase()).appendTo(svg);
+
+                x += 40;
+            }
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:30, x2:x, y2:260, stroke:'black', 'stroke-dasharray':2
+            }).appendTo(svg);
+//            console.log(`sx = ${sx}, sy = ${sy}, x = ${x}, y = ${y}`);
+
+            // frame color : sync(Lime), Type(LightSalmon), Command(Violet), Chip Select(RoyalBlue), Data(Gainsboro), opcode(xxx), shift(xxx)
+            const frame_color = ['red', 'Lime', 'LightSalmon', 'yellow', 'Violet', 'RoyalBlue', 'Gainsboro', 'blue'];
+
+            // clock 생성 : Low(10) + High(10), ...
+            x = sx + 20;
+            n = bytes.length * 8;             // clock의 개수.
+            var half = parseInt(clock/2);
+
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y+h, x2:x+(n*clock), y2:y+h, stroke:'black', 'stroke-dasharray':half
+            }).appendTo(svg);
+
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x+half, y1:y, x2:x+half+(n*clock), y2:y, stroke:'black', 'stroke-dasharray':half
+            }).appendTo(svg);
+
+
+//            console.log(`h = ${h}, half = ${half}, lineOfs = ${lineOfs}`);
+
+            // PS1120 Command Parsor.
+            var cmd;
+            var state = 0;
+            bytes.map(function(byte, idx) {
+//                console.log(`${idx} = 0x${byte.toString(16)}`);
+
+                switch( state ) {
+                    case 0:             // sync receive.
+                        if( byte == 0xAA ) {
+                            drawByte(x, y, byte, 8, frame_color[0], '');
+                            x += (8 * clock);
+                            state++;
+                        }
+                        break;
+                    case 1:             // command receive.
+                        cmd = (byte & 0x38) >> 3;
+                        op = (byte & 0x7);
+
+                        if( byte & 0x40 ) {
+                            state = 2;          // chip select receive.
+                        } else {
+                            if( cmd == 0 ) {    // single command.
+                                state = 6;
+                            } else if( cmd == 6 ) {     // special command.
+                                if( op === 7 ) {        // chip address assignment.
+                                    state = 4;
+                                } else {
+                                    state = 6;
+                                }
+                            } else {
+                                state = 4;      // switch number, row, column, switch select receive.
+                            }
+                        }
+                        drawByte(x, y, byte, 8, frame_color[1], '');
+                        x += (8 * clock);
+                        break;
+                    case 2:         // chip select receive.
+                        if( (cmd == 0) || (cmd == 6) ) {
+                            state = 6;
+                        } else {
+                            state = 4;
+                        }
+                        drawByte(x, y, byte, 8, frame_color[2], '');
+                        x += (8 * clock);
+                        break;
+                    case 4:
+                        if( cmd == 0x1 ) {      // switch number receive.
+                            state = 6;
+                        } else if( (cmd == 2) || (cmd == 3) ) {     // row select receive.
+                            state = 5;
+                        } else if( (cmd == 4) || (cmd == 5) ) {     // row select receive.
+                            state = 5;
+                        } else if( cmd == 6 ) {
+                            state = 6;
+                        } else if( cmd == 7 ) {
+                            if( nSwitchBytes == 15 ) state = 6;
+                        }
+                        drawByte(x, y, byte, 8, frame_color[3], '');
+                        x += (8 * clock);
+                        break;
+                    case 5:
+                        if( cmd == 2 ) {
+                            drawByte(x, y, byte, 2, frame_color[3], 'transparent');
+                            x += (8 * clock);
+                            state = 6;
+                        } else if( cmd == 3 ) {
+                            drawByte(x, y, byte, 2, frame_color[3], frame_color[4]);
+                            x += (8 * clock);
+                            state = 51;
+                        } else if( cmd == 4 ) {
+                            drawByte(x, y, byte, 4, frame_color[3], 'transparent');
+                            x += (8 * clock);
+                            state = 6;
+                        } else if( cmd == 5 ) {
+                            drawByte(x, y, byte, 4, frame_color[3], frame_color[4]);
+                            x += (8 * clock);
+                            state = 51;
+                        }
+                        break;
+                    case 51:
+                        if( cmd == 0x3 ) {
+                            drawByte(x, y, byte, 6, frame_color[4], 'transparent');
+                            x += (8 * clock);
+                        } else if( cmd == 0x5 ) {
+                            drawByte(x, y, byte, 6, frame_color[4], 'transparent');
+                            x += (8 * clock);
+                        }
+                        state = 6;
+                        break;
+                    case 6:
+                        drawByte(x, y, byte, 8, frame_color[5], '');
+                        x += (8 * clock);
+                        state++;
+                        break;
+                    case 7:
+                        drawByte(x, y, byte, 8, 'gray', '');
+                        x += (8 * clock);
+                        state = 0;
+                        break;
+                    case 8:
+                        break;
+                }
+            });
+
+            function drawByte(x, y, val, n, color1, color2) {
+                for(var bit=0; bit<8; bit++) {
+                    drawBit(x, y, val & (1 << (7-bit)), (bit<n)?color1:color2);
+                    x += clock;
+                }
+            }
+
+            function drawBit(x, y, val, color) {
+                // SCLK draw
+                $(document.createElementNS(xmlns, 'line')).attr({
+                    x1:x, y1:y, x2:x, y2:y+50, stroke:'black'
+                }).appendTo(svg);
+
+                $(document.createElementNS(xmlns, 'line')).attr({
+                    x1:x+5, y1:y+50, x2:x+5, y2:(y+5), stroke:'black', 'marker-end':'url(#Triangle)'
+                }).appendTo(svg);
+
+                // SDO Data draw
+                $(document.createElementNS(xmlns, 'rect')).attr({
+                    x:x, y:y+70, width:10, height:50, class:'blackStroke', fill:color
+                }).appendTo(svg);
+
+                $(document.createElementNS(xmlns, 'text')).attr({
+                    x:x+5, y:y+95, class:'centerAlign', fill:'black', 'font-size':12
+                }).text( (val == 0) ? '0':'1').appendTo(svg);
+            }
+
+            y = y + lineOfs;
+            // CSN line draw.
+            x = sx + 20;
+            y = y + lineOfs;
+            length = n * clock;
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x-5, y1:y, x2:x, y2:y+50, class:'blackStroke'
+            }).appendTo(svg);
+
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y+50, x2:x+length, y2:y+50, class:'blackStroke'
+            }).appendTo(svg);
+
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x+length, y1:y+50, x2:x+length+5, y2:y, class:'blackStroke'
+            }).appendTo(svg);
+
+            // time line & text draw.
+            t = ((length * 4) < 1000) ? `${(length * 4)} ns` : `${(length * 4) / 1000} us`;
+            $(document.createElementNS(xmlns, 'text')).attr({
+                x:x+(length/2), y:y+17, class:'centerAlign', fill:'black', 'font-size':10
+            }).text(t).appendTo(svg);
+
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x+(length/2), y1:y+25, x2:x, y2:y+25, class:'blueStroke', 'marker-end':'url(#Triangle)'
+            }).appendTo(svg);
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x+(length/2), y1:y+25, x2:x+length, y2:y+25, class:'blueStroke', 'marker-end':'url(#Triangle)'
+            }).appendTo(svg);
+
+
+            x = sx  + 20+ length;
+
+
+            n = 5;              // 
+            length = n * clock;
+            // high line draw : 1-clock(20pixel) 
+            y = sy;
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y, x2:x+length, y2:y, class:'blackStroke'
+            }).appendTo(svg);
+
+            // SDO line draw.
+            y = y + lineOfs;
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x, y1:y+(h/2), x2:x+length, y2:y+(h/2), class:'blackStroke'
+            }).appendTo(svg);
+
+            // CSN line draw.
+            y = y + lineOfs;
+            $(document.createElementNS(xmlns, 'line')).attr({
+                x1:x+5, y1:y, x2:x+length, y2:y, class:'blackStroke'
+            }).appendTo(svg);
+        }
+    </script>
+</body>
+</html>
+
+

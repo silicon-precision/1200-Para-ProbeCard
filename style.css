@@ -1,0 +1,33 @@
+body {
+    background-color: lightblue;
+}
+
+#project {
+    font-weight: bold;
+    font-size: 20px;
+    text-align: center;
+    line-height: 2;
+}
+
+text.centerAlign {
+    font-weight: bold;
+    dominant-baseline: middle;
+    text-anchor: middle;
+}
+
+text.rightAlign {
+    font-weight: bold;
+    dominant-baseline: middle;
+}
+
+.normalsvg {
+    fill: transparent;
+    stroke: black;
+    stroke-width: 1;
+}
+
+.dot {
+    fill: black;
+    stroke: black;
+    stroke-width: 1;
+}

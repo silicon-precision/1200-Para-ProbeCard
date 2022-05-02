@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8">
+        <title>PS1120 Command Frame & Switch Map</title>
+        <link href="./style.css" rel="stylesheet" media="all">
+        <style>
+            table{
+                border:2px solid;
+                border-collapse: collapse;
+            }
+            th, td{
+                border: 1px solid;
+            }
+            th{
+                width: 40px;
+                background-color:#F08080;
+            }
+            th.column{
+                background-color:Chartreuse;
+            }
+            td{
+                width: 30px;
+                font-family: Arial, 바탕체, "times New Roman", Serif;
+                font-size:12px;
+                font-weight:bold;
+                text-align:center;
+            }
+            rect.frameRect {
+                stroke:black;
+                stroke-width:1;
+                fill-opacity:0.5;
+            }
+
+        </style>
+
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    </head>
+
+    <body>
+        <div id="project">[ PS1120 Switch Map & Command Frame ]</div>
+        <!--
+        <center>
+        <b>Dut Power Number : </b>
+        <input type="number" id="DutPower" min="2" max="3" step='1' value='3' style='display:inline-block'>
+        <button class='button init'><u>I</u>nit &#9632;</button>&emsp;
+        <button class='button prev'><u>P</u>rev &#9664;</button>&emsp;
+        <button class='button next'><u>N</u>ext &#9654;</button></br>
+        </center>
+        -->
+
+        <center>
+        <table>
+            <tr>
+                <th colspan=2 rowspan=2 style="background-color:transparent"></th>
+                <th colspan=12 class="column">Column</th>
+            </tr>
+            <tr>
+                <!--
+                <th colspan=2></th>
+                -->
+                <th class='column'>[0]</th> <th class='column'>[1]</th> <th class='column'>[2]</th> <th class='column'>[3]</th> <th class='column'>[4]</th> <th class='column'>[5]</th> <th class='column'>[6]</th> <th class='column'>[7]</th> <th class='column'>[8]</th> <th class='column'>[9]</th> <th class='column'>[10]</th> <th class='column'>[11]</th>
+            </tr>
+            <tr>
+                <th rowspan=10>Row</th>
+                <th>[0]</th> <td>119</td> <td>109</td> <td>99</td> <td>89</td> <td>79</td> <td>69</td> <td>59</td> <td>49</td> <td>39</td> <td>29</td> <td>19</td> <td>9</td>
+            </tr>
+            <tr>
+                <!--
+                <th rowspan=10>Row</th>
+                -->
+                <th>[1]</th> <td>118</td> <td>108</td> <td>98</td> <td>88</td> <td>78</td> <td>68</td> <td>58</td> <td>48</td> <td>38</td> <td>28</td> <td>18</td> <td>8</td>
+            </tr>
+            <tr>
+                <th>[2]</th> <td>117</td> <td>107</td> <td>97</td> <td>87</td> <td>77</td> <td>67</td> <td>57</td> <td>47</td> <td>37</td> <td>27</td> <td>17</td> <td>7</td>
+            </tr>
+            <tr>
+                <th>[3]</th> <td>116</td> <td>106</td> <td>96</td> <td>86</td> <td>76</td> <td>66</td> <td>56</td> <td>46</td> <td>36</td> <td>26</td> <td>16</td> <td>6</td>
+            </tr>
+            <tr>
+                <th>[4]</th> <td>115</td> <td>105</td> <td>95</td> <td>85</td> <td>75</td> <td>65</td> <td>55</td> <td>45</td> <td>35</td> <td>25</td> <td>15</td> <td>5</td>
+            </tr>
+            <tr>
+                <th>[5]</th> <td>114</td> <td>104</td> <td>94</td> <td>84</td> <td>74</td> <td>64</td> <td>54</td> <td>44</td> <td>34</td> <td>24</td> <td>14</td> <td>4</td>
+            </tr>
+            <tr>
+                <th>[6]</th> <td>113</td> <td>103</td> <td>93</td> <td>83</td> <td>73</td> <td>63</td> <td>53</td> <td>43</td> <td>33</td> <td>23</td> <td>13</td> <td>3</td>
+            </tr>
+            <tr>
+                <th>[7]</th> <td>112</td> <td>102</td> <td>92</td> <td>82</td> <td>72</td> <td>62</td> <td>52</td> <td>42</td> <td>32</td> <td>22</td> <td>12</td> <td>2</td>
+            </tr>
+            <tr>
+                <th>[8]</th> <td>111</td> <td>101</td> <td>91</td> <td>81</td> <td>71</td> <td>61</td> <td>51</td> <td>41</td> <td>31</td> <td>21</td> <td>11</td> <td>1</td>
+            </tr>
+            <tr>
+                <th>[9]</th> <td>110</td> <td>100</td> <td>90</td> <td>80</td> <td>70</td> <td>60</td> <td>50</td> <td>40</td> <td>30</td> <td>20</td> <td>10</td> <td>0</td>
+            </tr>
+        </table>
+        </br>
+        </center>
+
+        <div id="tooltip" display='none' style="position:absolute; display:none;"></div>
+        <div id="svgContainer" name="container" align="center"></div>
+
+    <script language="javascript">
+        const xmlns = "http://www.w3.org/2000/svg";
+        const svgWidth = 1030;      // 25 x 44 = 1100
+        const svgHeight = 250;      // 25 x 34 = 850
+
+        function getUrlParams() {
+            var params = {};
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(str, key, value) {
+                params[key] = value;
+            });
+            return params;
+        }
+
+        var svgTag;
+        var TotalDUT;
+        var nGroup;
+//        $(document).ready(function(){
+        $(function() {
+            var oParams = getUrlParams();
+
+            if( Object.keys(oParams).length == 0 ) {
+                nGroup = 10;
+                TotalDUT = 120;
+            } else {
+//                console.log(oParams);
+//                console.log(`oParams = ${JSON.stringify(oParams)}, ${Object.keys(oParams).length}`);
+                TotalDUT = parseInt(oParams.TotalDUT);
+                nGroup = parseInt(oParams.nGroup);
+            }
+            //            console.log(`TotalDUT = ${TotalDUT}, nGroup = ${nGroup}`);
+
+            createSVG();
+
+            // 브라우저의 Window 크기에 맞추어서 svg영역을 재설정한다.
+            var w = $(window).width();
+            var h = $(window).height();
+//            console.log(`window size = ${w} x ${h})`);
+
+            $("#ProbeCard").width(w-20);
+            $("#ProbeCard").height(h-400);
+        });
+
+        // 브라우저 windows의 크기를 변경하면 Call된다.
+        $(window).resize( function() {
+            var w = $(window).width();
+            var h = $(window).height();
+
+            $("#ProbeCard").width(w);
+            $("#ProbeCard").height(h);
+
+            var clientWidth = $('#ProbeCard').width();
+            var clientHeight = $('#ProbeCard').height();
+//            console.log(`window : (${w}, ${h}), ProbeCard : (${clientWidth}, ${clientHeight})\n`);
+        });
+
+
+        function createSVG() {
+            svgTag = document.createElementNS(xmlns, "svg");
+            svgTag.setAttributeNS(null, "id", "ProbeCard");
+            svgTag.setAttributeNS(null, "align", "center");
+            svgTag.setAttributeNS(null, "width", "100%");//svgWidth.toString());
+            svgTag.setAttributeNS(null, "height", "100%");//svgHeight.toString());
+            svgTag.setAttributeNS(null, "viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+
+//            console.log(`SVG width(${svgTag.getAttribute('width')}), height(${svgTag.getAttribute('height')})`);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:1, y:1, width:svgWidth-2, height:svgHeight-2, fill:"transparent", stroke:'gray', "stroke-width":1
+            }).appendTo(svgTag);
+
+            // FPGA rect.
+            x = 10;
+            y = 10;
+
+            drawCommandFrame(0, x, y);
+            drawCommandFrame(1, x, y+30);
+            drawCommandFrame(2, x, y+60);
+            drawCommandFrame(3, x, y+90);
+            drawCommandFrame(4, x, y+120);
+            drawCommandFrame(5, x, y+150);
+            drawCommandFrame(6, x, y+180);
+            drawCommandFrame(7, x, y+210);
+
+
+            var svgContainer = document.getElementById("svgContainer");
+            svgContainer.appendChild(svgTag);
+        }
+
+        function drawCommandFrame(type, sx, sy) {
+            var x = sx;
+
+            x += drawField(x, sy, 100, 'Sync', 'red');
+            x += drawField(x, sy, 100, 'Command', 'blue');
+            if( type == 0 ) {
+            } else if( type == 1 ) {
+                x += drawField(x, sy, 100, 'Switch Number', 'green');
+            } else if( type == 2 ) {
+                x += drawField(x, sy, 125, 'Row Select[9:0]', 'aqua');
+                x += drawField(x, sy, 75, '...', 'transparent');
+            } else if( type == 3 ) {
+                x += drawField(x, sy, 125, 'Row Select[9:0]', 'aqua');
+                x += drawField(x, sy, 150, 'Column Select[11:0]', 'violet');
+                x += drawField(x, sy!!><Mouse>C!!>
+            } else if( type == 4 ) {
+                x += drawField(x, sy, 150, 'Column Select[11:0]', 'violet');
+                x += drawField(x, sy, 50, '...', 'transparent');
+            } else if( type == 5 ) {
+                x += drawField(x, sy, 150, 'Column Select[11:0]', 'violet');
+                x += drawField(x, sy, 125, 'Row Select[9:0]', 'aqua');
+                x += drawField(x, sy, 25, '...', 'transparent');
+            } else if( type == 6 ) {
+            } else if( type == 7 ) {
+                x += drawField(x, sy, 600, 'Switch[119:0] Select', 'DodgerBlue');
+            }
+
+            x += drawField(x, sy, 100, 'OP Cycle', 'YellowGreen');
+            drawField(x, sy, 100, 'Shift Cycle', 'gray');
+        }
+
+
+        function drawField(x, y, dx, txt, color) {
+            $(document.createElementNS(xmlns, "text")).attr({
+                x:x+(dx/2), y:y+12, class:'centerAlign', 'font-size':12
+            }).text(txt).appendTo(svgTag);
+            $(document.createElementNS(xmlns, "rect")).attr({
+                x:x, y:y, width:dx, height:20, fill:color, 'class':'frameRect'
+            }).appendTo(svgTag);
+
+            return dx;
+        }
+
+    </script>
+</body>
+</html>
